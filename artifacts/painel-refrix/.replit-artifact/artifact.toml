@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Painel Sensibilidade Econômica Refrix"
+version = "1.0.0"
+id = "artifacts/painel-refrix"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22379
+
+[services.development]
+run = "pnpm --filter @workspace/painel-refrix run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/painel-refrix", "run", "build" ]
+publicDir = "artifacts/painel-refrix/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22379"
+BASE_PATH = "/"

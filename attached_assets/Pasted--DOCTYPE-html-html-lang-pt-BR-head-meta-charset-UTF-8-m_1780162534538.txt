@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Sensibilidade Econômica Refrix</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui, 'Segoe UI', Roboto, sans-serif; }
+        body { background:#0a0f1d; color:#e0e6f0; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:1rem; }
+        .container { max-width:1400px; width:100%; }
+        header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; padding:1rem 0; border-bottom:1px solid #1f2a44; margin-bottom:1.5rem; }
+        header h1 { font-size:1.8rem; font-weight:400; letter-spacing:1px; }
+        .header-right { display:flex; align-items:center; gap:1rem; }
+        .status-geral { display:flex; gap:0.5rem; font-size:0.75rem; }
+        .status-geral .dot { width:0.6rem; height:0.6rem; border-radius:50%; display:inline-block; background:#555; }
+        .status-geral .dot.green { background:#27c93f; }
+        .status-geral .dot.yellow { background:#ffbd1f; }
+        .status-geral .dot.red { background:#e63946; }
+        .ticker { background:#141c2e; border-radius:30px; padding:0.35rem 1.2rem; font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px; display:flex; align-items:center; gap:0.3rem; }
+        .ticker.blink { animation:blink 1.2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        btn { border:none; background:#1f2a44; color:#c0d0eb; padding:0.4rem 1rem; border-radius:6px; cursor:pointer; font-size:0.85rem; transition:0.2s; }
+        btn:hover { background:#2d3b5e; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.2rem; margin-bottom:2rem; }
+        .card { background:#141c2e; border-radius:16px; padding:1.2rem 1.2rem 1rem; display:flex; flex-direction:column; position:relative; border-left:4px solid #2d3b5e; transition:0.2s; }
+        .card.green { border-left-color:#27c93f; }
+        .card.yellow { border-left-color:#ffbd1f; }
+        .card.red { border-left-color:#e63946; }
+        .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem; }
+        .card-title { font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; color:#8897b0; }
+        .card-status { font-size:0.65rem; padding:0.15rem 0.5rem; border-radius:10px; background:rgba(255,255,255,0.05); color:#8897b0; }
+        .card-value { font-size:2.6rem; font-weight:700; line-height:1.1; margin:0.2rem 0 0.3rem; }
+        .card-unit { font-size:0.8rem; font-weight:400; color:#8897b0; }
+        .card-time { font-size:0.7rem; color:#5c6b87; margin-top:auto; padding-top:0.5rem; border-top:1px solid #1f2a44; display:flex; justify-content:space-between; flex-wrap:wrap; }
+        .card-time span { display:inline-flex; align-items:center; gap:0.3rem; }
+        .gatilhos { margin-top:0.5rem; font-size:0.75rem; display:flex; flex-wrap:wrap; gap:0.3rem; }
+        .gatilho { background:#1f2a44; padding:0.1rem 0.5rem; border-radius:8px; color:#a0b0cc; }
+        .gatilho.alerta { background:#2d1a1a; color:#f57373; }
+        .section-title { font-size:1rem; font-weight:500; margin:1.5rem 0 0.5rem; color:#a0b0cc; border-bottom:1px solid #1f2a44; padding-bottom:0.5rem; }
+        .leitura-detalhada { background:#0f1628; border-radius:12px; padding:1rem; margin-bottom:1.5rem; font-size:0.88rem; line-height:1.5; }
+        .leitura-detalhada .row { display:flex; justify-content:space-between; padding:0.3rem 0; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .leitura-detalhada .row:last-child { border:none; }
+        .leitura-detalhada b { color:#c0d0eb; }
+        .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1f2a44; padding:0.6rem 1.5rem; border-radius:30px; box-shadow:0 4px 20px rgba(0,0,0,0.5); font-size:0.8rem; display:none; z-index:999; }
+        @media(max-width:600px){ header h1 { font-size:1.3rem; } .grid { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>⚡ Painel Sensibilidade Econômica</h1>
+        <div class="header-right">
+            <div class="status-geral">
+                <span class="dot green"></span>
+                <span class="dot yellow"></span>
+                <span class="dot red"></span>
+                <span style="margin-left:4px;font-size:0.7rem;">APIs</span>
+            </div>
+            <div class="ticker" id="ticker">Carregando...</div>
+            <btn id="refreshBtn">↻ Atualizar</btn>
+        </div>
+    </header>
+
+    <div class="grid" id="cardsGrid"></div>
+
+    <div class="section-title">📋 Leitura Detalhada</div>
+    <div class="leitura-detalhada" id="leituraDetalhada">
+        <div class="row"><span>Status geral:</span><span id="statusGeral">Aguardando...</span></div>
+        <div class="row"><span>Última atualização:</span><span id="ultimaAtualizacao">—</span></div>
+        <div class="row"><span>Modo:</span><span id="modoInfo">Online</span></div>
+    </div>
+
+    <div class="section-title">🔔 Gatilhos Gerenciais</div>
+    <div id="gatilhosContainer" class="leitura-detalhada" style="min-height:50px;"></div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+// ====== CONFIG ======
+const RETRY_INTERVAL = 300000; // 5 min
+const FALLBACKS = {
+    ipca: { value: 4.39, unit: '%', label: '4,39%' },
+    selic: { value: 14.50, unit: '%', label: '14,50%' },
+    brent: { value: 96.0, unit: 'US$/bbl', label: 'US$ 96,00' },
+    dolar: { value: 5.02, unit: 'R$', label: 'R$ 5,02' },
+    diesel: { value: 7.24, unit: 'R$/L', label: 'R$ 7,24' },
+    acucar: { value: 141.0, unit: 'R$/sc', label: 'R$ 141,00' },
+    pet: { value: 916.0, unit: 'US$/t', label: 'US$ 916,00' },
+    icc: { value: 88.8, unit: 'pts', label: '88,8 pts' }
+};
+
+// ====== STATE ======
+const indicators = {};
+let lastFullRefresh = null;
+let offlineMode = false;
+
+// ====== HELPER: format date ======
+function now() {
+    return new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+function formatTimestamp() {
+    return new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ====== PROXY FETCH ======
+async function fetchWithProxy(url, useProxy = true, timeout = 12000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        let finalUrl = url;
+        if (useProxy) {
+            finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        }
+        const resp = await fetch(finalUrl, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return await resp.text();
+    } catch (e) {
+        clearTimeout(timer);
+        throw e;
+    }
+}
+
+// ====== API FETCH FUNCTIONS ======
+async function fetchIPCA() {
+    // BCB série 13522 (IPCA 12m) - último valor
+    const data = await fetchWithProxy('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json', false);
+    const json = JSON.parse(data);
+    if (!json || !json.length) throw new Error('Empty');
+    const val = parseFloat(json[0].valor.replace(',','.'));
+    return { value: val, raw: val, unit: '%', label: val.toFixed(2).replace('.',',') + '%' };
+}
+
+async function fetchSelic() {
+    // BCB série 432 (Selic meta)
+    const data = await fetchWithProxy('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', false);
+    const json = JSON.parse(data);
+    if (!json || !json.length) throw new Error('Empty');
+    const val = parseFloat(json[0].valor.replace(',','.'));
+    return { value: val, raw: val, unit: '%', label: val.toFixed(2).replace('.',',') + '%' };
+}
+
+async function fetchDolar() {
+    // BCB OData PTAX
+    const hoje = new Date();
+    const mm = String(hoje.getMonth()+1).padStart(2,'0');
+    const dd = String(hoje.getDate()).padStart(2,'0');
+    const yyyy = hoje.getFullYear();
+    const dataStr = `${mm}-${dd}-${yyyy}`;
+    const url = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dataStr}'&$top=1&$format=json`;
+    const text = await fetchWithProxy(url, true, 10000);
+    const json = JSON.parse(text);
+    if (!json || !json.value || !json.value.length) throw new Error('Sem cotação para hoje');
+    const cotacao = json.value[0].cotacaoVenda;
+    const val = parseFloat(cotacao);
+    return { value: val, raw: val, unit: 'R$', label: `R$ ${val.toFixed(2).replace('.',',')}` };
+}
+
+async function fetchBrent() {
+    // brapi.dev BZ=F
+    const text = await fetchWithProxy('https://brapi.dev/api/quote/BZ=F?token=none', true, 10000);
+    const json = JSON.parse(text);
+    if (!json || !json.results || !json.results.length) throw new Error('No results');
+    const val = json.results[0].regularMarketPrice;
+    if (val === undefined || val === null) throw new Error('No price');
+    return { value: val, raw: val, unit: 'US$/bbl', label: `US$${val.toFixed(2).replace('.',',')}` };
+}
+
+async function fetchDiesel() {
+    // ANP Tenta buscar CSV mensal (exemplo genérico)
+    const url = 'https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/precos-semestrais/precos-semestrais.csv';
+    const text = await fetchWithProxy(url, true, 12000);
+    // Parse rápido: procurar linha com "DIESEL S10"
+    const lines = text.split('\n');
+    let val = null;
+    for (const line of lines) {
+        if (line.toLowerCase().includes('diesel s10') || line.toUpperCase().includes('DIESEL S10')) {
+            // espera formato: ...;7,24;...
+            const parts = line.split(';');
+            for (let p of parts) {
+                p = p.trim().replace(',','.');
+                if (!isNaN(parseFloat(p)) && parseFloat(p) > 1) { val = parseFloat(p); break; }
+            }
+            if (val) break;
+        }
+    }
+    if (!val) throw new Error('Preço não encontrado no CSV');
+    return { value: val, raw: val, unit: 'R$/L', label: `R$ ${val.toFixed(2).replace('.',',')}` };
+}
+
+async function fetchAcucar() {
+    // CEPEA - widget JS (tenta JSONP - simulação com proxy)
+    const url = 'https://www.cepea.esalq.usp.br/br/indicador/acucar-cristal.aspx?output=json';
+    const text = await fetchWithProxy(url, true, 12000);
+    // Tenta parse de um objeto js (pode ser JSONP)
+    let json;
+    try {
+        const cleaned = text.replace(/^.*?\(/,'').replace(/\)\s*$/,'').trim();
+        json = JSON.parse(cleaned);
+    } catch(e) {
+        // Tenta parse direto
+        json = JSON.parse(text);
+    }
+    if (json && json.preco) {
+        const val = parseFloat(json.preco.replace(',','.'));
+        return { value: val, raw: val, unit: 'R$/sc', label: `R$ ${val.toFixed(2).replace('.',',')}` };
+    }
+    throw new Error('Formato inesperado');
+}
+
+// ====== INITIALIZE INDICATORS ======
+const indicatorDefs = [
+    { id:'ipca', name:'IPCA 12m', fallback: FALLBACKS.ipca, fetchFn: fetchIPCA, manual: false },
+    { id:'selic', name:'Selic Meta', fallback: FALLBACKS.selic, fetchFn: fetchSelic, manual: false },
+    { id:'brent', name:'Brent', fallback: FALLBACKS.brent, fetchFn: fetchBrent, manual: false },
+    { id:'dolar', name:'Dólar PTAX', fallback: FALLBACKS.dolar, fetchFn: fetchDolar, manual: false },
+    { id:'diesel', name:'Diesel S10', fallback: FALLBACKS.diesel, fetchFn: fetchDiesel, manual: false },
+    { id:'acucar', name:'Açúcar Cristal SP', fallback: FALLBACKS.acucar, fetchFn: fetchAcucar, manual: false },
+    { id:'pet', name:'PET Virgem', fallback: FALLBACKS.pet, fetchFn: null, manual: true },
+    { id:'icc', name:'ICC FGV', fallback: FALLBACKS.icc, fetchFn: null, manual: true }
+];
+
+indicatorDefs.forEach(def => {
+    indicators[def.id] = {
+        ...def,
+        current: def.fallback,
+        status: 'yellow', // green = api ok, yellow = fallback, red = failed
+        lastUpdate: null,
+        apiStatus: def.manual ? '⚙️ Manual' : '⏳ Inicializando...'
+    };
+    // For manual ones, set green
+    if (def.manual) {
+        indicators[def.id].status = 'green';
+        indicators[def.id].apiStatus = '✅ Manual';
+        indicators[def.id].lastUpdate = now();
+    }
+});
+
+// ====== UPDATE UI ======
+function renderCards() {
+    const grid = document.getElementById('cardsGrid');
+    grid.innerHTML = '';
+    const ids = ['ipca','selic','brent','dolar','diesel','acucar','pet','icc'];
+    for (const id of ids) {
+        const ind = indicators[id];
+        const val = ind.current;
+        const card = document.createElement('div');
+        card.className = `card ${ind.status}`;
+        card.id = `card-${id}`;
+        let statusText = '';
+        if (ind.apiStatus.includes('✅')) statusText = '✅ OK';
+        else if (ind.apiStatus.includes('⚠️') || ind.apiStatus.includes('Parcial')) statusText = '⚠️ Parcial';
+        else if (ind.apiStatus.includes('❌')) statusText = '❌ Erro';
+        else if (ind.manual) statusText = '⚙️ Manual';
+        else statusText = ind.apiStatus;
+        const timeStr = ind.lastUpdate ? ind.lastUpdate : '—';
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="card-title">${ind.name}</span>
+                <span class="card-status">${statusText}</span>
+            </div>
+            <div class="card-value">${val.label}</div>
+            <div class="card-unit">${val.unit}</div>
+            <div class="card-time">
+                <span>🕒 ${timeStr}</span>
+                <span>${ind.manual ? '✏️ Manual' : '📡 Automático'}</span>
+            </div>
+        `;
+        grid.appendChild(card);
+    }
+}
+
+function renderGatilhos() {
+    const container = document.getElementById('gatilhosContainer');
+    const base = indicators;
+    const divergencias = [];
+    // Gatilho: IPCA > 5% alerta
+    if (base.ipca.current.value > 5) divergencias.push({ msg: `IPCA (${base.ipca.current.label}) > 5% – impacto inflacionário alto`, tipo: 'alerta' });
+    else divergencias.push({ msg: `IPCA (${base.ipca.current.label}) controlado`, tipo: 'normal' });
+    // Selic > 12% alerta
+    if (base.selic.current.value > 12) divergencias.push({ msg: `Selic (${base.selic.current.label}) acima de 12% – crédito restrito`, tipo: 'alerta' });
+    else divergencias.push({ msg: `Selic (${base.selic.current.label}) favorável`, tipo: 'normal' });
+    // Dólar > 5.50 alerta
+    if (base.dolar.current.value > 5.5) divergencias.push({ msg: `Dólar (${base.dolar.current.label}) > R$5,50 – pressão em insumos`, tipo: 'alerta' });
+    else divergencias.push({ msg: `Dólar (${base.dolar.current.label}) estável`, tipo: 'normal' });
+    // Brent > 100 alerta
+    if (base.brent.current.value > 100) divergencias.push({ msg: `Brent (${base.brent.current.label}) > US$100 – custo energético elevado`, tipo: 'alerta' });
+    else divergencias.push({ msg: `Brent (${base.brent.current.label}) dentro do esperado`, tipo: 'normal' });
+    // Diesel > 7.50 alerta
+    if (base.diesel.current.value > 7.5) divergencias.push({ msg: `Diesel (${base.diesel.current.label}) > R$7,50 – logística mais cara`, tipo: 'alerta' });
+    else divergencias.push({ msg: `Diesel (${base.diesel.current.label}) razoável`, tipo: 'normal' });
+    // Açúcar > 150 alerta
+    if (base.acucar.current.value > 150) divergencias.push({ msg: `Açúcar (${base.acucar.current.label}) > R$150/sc – matéria-prima cara`, tipo: 'alerta' });
+    else divergencias.push({ msg: `Açúcar (${base.acucar.current.label}) moderado`, tipo: 'normal' });
+    // PET < 800 alerta
+    if (base.pet.current.value < 800) divergencias.push({ msg: `PET (${base.pet.current.label}) abaixo de 800 – ponto de atenção`, tipo: 'alerta' });
+    else divergencias.push({ msg: `PET (${base.pet.current.label}) favorável`, tipo: 'normal' });
+    // ICC < 80 alerta
+    if (base.icc.current.value < 80) divergencias.push({ msg: `ICC (${base.icc.current.label}) < 80 pts – confiança baixa`, tipo: 'alerta' });
+    else divergencias.push({ msg: `ICC (${base.icc.current.label}) saudável`, tipo: 'normal' });
+
+    container.innerHTML = divergencias.map(d => `<span class="gatilho ${d.tipo === 'alerta' ? 'alerta' : ''}">${d.msg}</span>`).join('<br>');
+}
+
+function updateLeituraDetalhada() {
+    const nApis = indicatorDefs.filter(d => !d.manual).length;
+    let ok = 0, parcial = 0, erro = 0;
+    for (const id in indicators) {
+        const ind = indicators[id];
+        if (ind.manual) continue;
+        if (ind.apiStatus.includes('✅')) ok++;
+        else if (ind.apiStatus.includes('⚠️') || ind.apiStatus.includes('Parcial')) parcial++;
+        else if (ind.apiStatus.includes('❌')) erro++;
+    }
+    const statusText = `${ok}/${nApis} OK, ${parcial} parcial, ${erro} erro`;
+    document.getElementById('statusGeral').textContent = statusText;
+    document.getElementById('ultimaAtualizacao').textContent = lastFullRefresh ? lastFullRefresh : '—';
+    document.getElementById('modoInfo').textContent = offlineMode ? 'Offline (fallback)' : 'Online (real)';
+}
+
+function updateTicker() {
+    const ticker = document.getElementById('ticker');
+    const ipca = indicators.ipca.current.label;
+    const selic = indicators.selic.current.label;
+    const dolar = indicators.dolar.current.label;
+    ticker.textContent = `📊 IPCA ${ipca} | Selic ${selic} | Dólar ${dolar} ${now()}`;
+}
+
+function showToast(msg, duration = 3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', duration);
+}
+
+// ====== FETCH ALL ======
+async function fetchAllIndicators() {
+    const promises = [];
+    for (const def of indicatorDefs) {
+        if (def.fetchFn) {
+            promises.push(
+                def.fetchFn()
+                    .then(result => {
+                        indicators[def.id].current = result;
+                        indicators[def.id].status = 'green';
+                        indicators[def.id].apiStatus = '✅ OK';
+                        indicators[def.id].lastUpdate = now();
+                        console.log(`✅ ${def.name}: ${result.label}`);
+                    })
+                    .catch(err => {
+                        console.warn(`❌ ${def.name}: ${err.message || err}`);
+                        // Usa fallback
+                        const fallback = def.fallback;
+                        indicators[def.id].current = fallback;
+                        indicators[def.id].status = 'yellow';
+                        indicators[def.id].apiStatus = '⚠️ Parcial (fallback)';
+                        indicators[def.id].lastUpdate = now();
+                        // Se já tinha fallback e não veio da API, mantém amarelo
+                        if (offlineMode) {
+                            indicators[def.id].apiStatus = '⚠️ Offline (fallback)';
+                        } else {
+                            indicators[def.id].apiStatus = '⚠️ Fallback';
+                        }
+                    })
+            );
+        }
+    }
+    await Promise.allSettled(promises);
+
+    // Verifica se todas as APIs falharam -> modo offline
+    const apisNaoManual = indicatorDefs.filter(d => !d.manual);
+    const anySucesso = apisNaoManual.some(d => indicators[d.id].apiStatus.includes('✅'));
+    if (!anySucesso) {
+        offlineMode = true;
+        showToast('⚠️ Modo offline ativado – APIs indisponíveis', 5000);
+    } else {
+        offlineMode = false;
+    }
+
+    lastFullRefresh = now();
+    updateUI();
+}
+
+function updateUI() {
+    renderCards();
+    renderGatilhos();
+    updateLeituraDetalhada();
+    updateTicker();
+}
+
+// ====== MANUAL REFRESH ======
+document.getElementById('refreshBtn').addEventListener('click', async () => {
+    document.getElementById('refreshBtn').textContent = '↻ Atualizando...';
+    await fetchAllIndicators();
+    document.getElementById('refreshBtn').textContent = '↻ Atualizar';
+    showToast('✔️ Dados atualizados', 2000);
+});
+
+// ====== INICIALIZAÇÃO ======
+(async function init() {
+    await fetchAllIndicators();
+    // Retry automático
+    setInterval(fetchAllIndicators, RETRY_INTERVAL);
+    // Ticker pisca
+    const tickerEl = document.getElementById('ticker');
+    tickerEl.classList.add('blink');
+    setTimeout(() => tickerEl.classList.remove('blink'), 3000);
+})();
+</script>
+</body>
+</html>
