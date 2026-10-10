@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { logger } from "../lib/logger";
-import { MANUAL_IDS, type ManualId, addManualValue, getManualStates } from "../lib/store";
+import { MANUAL_IDS, type ManualId, addManualValue, getDbStatus, getManualStates } from "../lib/store";
 import { clearHistoryCache } from "./history";
 
 // Valores manuais compartilhados (PET, ICC). Qualquer um vê; para
@@ -24,6 +24,7 @@ router.get("/manual", async (_req, res) => {
     res.json({
       storage: values ? "server" : "none",
       passwordConfigured: Boolean(process.env["EDIT_PASSWORD"]),
+      db: getDbStatus(),
       values,
     });
   } catch (err) {

@@ -9,6 +9,12 @@ import { logger } from "./logger";
 type DbModule = typeof import("@workspace/db");
 
 let dbPromise: Promise<DbModule | null> | null = null;
+/** Último erro de conexão, para o diagnóstico em /api/manual (sem endereço nem senha) */
+let lastDbError: string | null = null;
+
+export function getDbStatus(): { configured: boolean; error: string | null } {
+  return { configured: Boolean(process.env["DATABASE_URL"]), error: lastDbError };
+}
 
 async function connect(): Promise<DbModule | null> {
   if (!process.env["DATABASE_URL"]) {
@@ -40,11 +46,21 @@ async function connect(): Promise<DbModule | null> {
 /** Módulo do banco, ou null se não houver banco configurado. */
 export function getDb(): Promise<DbModule | null> {
   if (!dbPromise) {
-    dbPromise = connect().catch((err) => {
-      logger.error({ err }, "Falha ao conectar no banco");
-      dbPromise = null; // tenta de novo na próxima chamada
-      return null;
-    });
+    dbPromise = connect()
+      .then((mod) => {
+        if (mod) lastDbError = null;
+        return mod;
+      })
+      .catch((err) => {
+        logger.error({ err }, "Falha ao conectar no banco");
+        // O drizzle embrulha o erro do Postgres: o motivo real fica em `cause`
+        const cause = err instanceof Error && err.cause instanceof Error ? err.cause : err;
+        const code = (cause as { code?: unknown })?.code;
+        const msg = (cause instanceof Error ? cause.message : String(cause)) + (code ? ` (${String(code)})` : "");
+        lastDbError = msg.replace(/postgres(ql)?:\/\/\S+/gi, "[url]").slice(0, 300);
+        dbPromise = null; // tenta de novo na próxima chamada
+        return null;
+      });
   }
   return dbPromise;
 }
