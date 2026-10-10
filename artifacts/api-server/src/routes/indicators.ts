@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { logger } from "../lib/logger";
 import { fetchWithTimeout, fetchYahooChart, quoteFromChart } from "../lib/fetch";
 import { getCepeaSugar } from "../lib/cepea";
+import { getDieselPrices } from "../lib/diesel";
 import { fetchSgs, toBrDate, toIsoDate } from "../lib/bcb";
 
 // Busca os indicadores automáticos no servidor (sem proxy de terceiros e sem
@@ -15,6 +16,8 @@ export interface IndicatorReading {
   /** Data de referência do dado, no formato yyyy-MM-dd */
   refDate: string;
   source: string;
+  /** Segunda cotação mostrada no card (ex.: diesel em São Paulo) */
+  secondary?: { label: string; value: number; previousValue: number | null };
 }
 
 export interface IndicatorFailure {
@@ -158,12 +161,27 @@ async function fetchAcucar(): Promise<IndicatorReading> {
   };
 }
 
+async function fetchDiesel(): Promise<IndicatorReading> {
+  // Preço médio Brasil no valor principal; São Paulo como segunda cotação
+  const d = await getDieselPrices();
+  return {
+    id: "diesel",
+    ok: true,
+    value: d.br.value,
+    previousValue: d.br.previousValue,
+    refDate: d.refDate,
+    source: "Petrobras (via combustivelapi.com.br)",
+    secondary: { label: "São Paulo", value: d.sp.value, previousValue: d.sp.previousValue },
+  };
+}
+
 const FETCHERS: Record<string, () => Promise<IndicatorReading>> = {
   ipca: fetchIpca,
   selic: fetchSelic,
   dolar: fetchDolar,
   brent: fetchBrent,
   acucar: fetchAcucar,
+  diesel: fetchDiesel,
 };
 
 async function loadAll(): Promise<IndicatorsResponse> {

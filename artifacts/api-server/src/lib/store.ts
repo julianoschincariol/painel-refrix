@@ -55,7 +55,7 @@ export interface Point {
   v: number;
 }
 
-export const MANUAL_IDS = ["diesel", "pet", "icc"] as const;
+export const MANUAL_IDS = ["pet", "icc"] as const;
 export type ManualId = (typeof MANUAL_IDS)[number];
 
 export interface ManualState {
@@ -94,7 +94,7 @@ export async function addManualValue(id: ManualId, value: number): Promise<void>
   await mod.db.insert(mod.manualValuesTable).values({ indicator: id, value });
 }
 
-export async function getManualHistory(id: ManualId, since: Date): Promise<Point[]> {
+export async function getManualHistory(id: string, since: Date): Promise<Point[]> {
   const mod = await getDb();
   if (!mod) return [];
   const { db, manualValuesTable: t } = mod;

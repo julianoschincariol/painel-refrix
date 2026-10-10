@@ -22,7 +22,7 @@ const RANGES = {
 } as const;
 type Range = keyof typeof RANGES;
 
-const IDS = ["ipca", "selic", "dolar", "brent", "acucar", ...MANUAL_IDS] as const;
+const IDS = ["ipca", "selic", "dolar", "brent", "acucar", "diesel", ...MANUAL_IDS] as const;
 type HistoryId = (typeof IDS)[number];
 
 /** Máximo de pontos por série (gráfico não precisa de mais que isso) */
@@ -77,6 +77,14 @@ async function cepeaHistory(range: Range): Promise<Point[]> {
   return [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) => ({ d, v }));
 }
 
+async function dieselHistory(range: Range): Promise<Point[]> {
+  // Antes de ser automático o diesel era digitado à mão: junta as duas fontes
+  const byDay = new Map<string, number>();
+  for (const p of await getManualHistory("diesel", startDate(range))) byDay.set(p.d, p.v);
+  for (const p of await getDailyReadings("diesel", toIsoDate(startDate(range)))) byDay.set(p.d, p.v);
+  return [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) => ({ d, v }));
+}
+
 async function loadSeries(id: HistoryId, range: Range): Promise<Point[]> {
   switch (id) {
     case "ipca":
@@ -89,6 +97,8 @@ async function loadSeries(id: HistoryId, range: Range): Promise<Point[]> {
       return yahooHistory("BZ=F", range);
     case "acucar":
       return cepeaHistory(range);
+    case "diesel":
+      return dieselHistory(range);
     default:
       return getManualHistory(id, startDate(range));
   }

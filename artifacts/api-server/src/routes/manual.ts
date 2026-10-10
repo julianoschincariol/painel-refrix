@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 import { MANUAL_IDS, type ManualId, addManualValue, getManualStates } from "../lib/store";
 import { clearHistoryCache } from "./history";
 
-// Valores manuais compartilhados (Diesel, PET, ICC). Qualquer um vê; para
+// Valores manuais compartilhados (PET, ICC). Qualquer um vê; para
 // alterar é preciso a senha definida no Secret EDIT_PASSWORD do Replit.
 
 function passwordMatches(given: unknown): boolean {

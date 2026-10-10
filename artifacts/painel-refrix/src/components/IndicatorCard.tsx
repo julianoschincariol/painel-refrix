@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Indicator, ManualId } from '@/hooks/useEconomicIndicators';
+import { Indicator, ManualId, formatIndicatorValue } from '@/hooks/useEconomicIndicators';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -228,6 +228,27 @@ export function IndicatorCard({ indicator, index, onManualEdit, history, onOpenC
                     {indicator.label}
                   </span>
                   <DeltaBadge indicator={indicator} />
+                  {indicator.secondary && (
+                    <div className="w-full flex items-center gap-2 text-xs text-muted-foreground" data-testid={`secondary-${indicator.id}`}>
+                      {indicator.primaryLabel && <span>{indicator.primaryLabel}</span>}
+                      <span className="text-muted-foreground/50">·</span>
+                      <span>{indicator.secondary.label}:</span>
+                      <span className="font-mono font-medium text-foreground">
+                        {formatIndicatorValue(indicator.id, indicator.secondary.value)}
+                      </span>
+                      <DeltaBadge
+                        indicator={{
+                          ...indicator,
+                          value: indicator.secondary.value,
+                          previousValue: indicator.secondary.previousValue,
+                          previousLabel:
+                            indicator.secondary.previousValue !== undefined
+                              ? formatIndicatorValue(indicator.id, indicator.secondary.previousValue)
+                              : undefined,
+                        }}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

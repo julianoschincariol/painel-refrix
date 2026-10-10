@@ -3,8 +3,8 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export type IndicatorStatus = 'ok' | 'fallback' | 'manual' | 'error';
-export type ManualId = 'diesel' | 'pet' | 'icc';
-type AutoId = 'ipca' | 'selic' | 'dolar' | 'brent' | 'acucar';
+export type ManualId = 'pet' | 'icc';
+type AutoId = 'ipca' | 'selic' | 'dolar' | 'brent' | 'acucar' | 'diesel';
 export type IndicatorId = AutoId | ManualId;
 
 export interface Indicator {
@@ -22,6 +22,10 @@ export interface Indicator {
   source?: string;
   /** Taxas (%) variam em pontos percentuais; preços variam em % */
   deltaMode: 'pct' | 'pp';
+  /** Legenda do valor principal, quando o card tem duas cotações */
+  primaryLabel?: string;
+  /** Segunda cotação do card (ex.: diesel em São Paulo) */
+  secondary?: { label: string; value: number; previousValue?: number };
 }
 
 interface EconomicData {
@@ -48,6 +52,7 @@ interface IndicatorDef {
   fallback: number;
   /** Indicadores mensais mostram "set/2026" em vez do dia */
   monthly?: boolean;
+  primaryLabel?: string;
 }
 
 const DEFS: Record<IndicatorId, IndicatorDef> = {
@@ -55,14 +60,14 @@ const DEFS: Record<IndicatorId, IndicatorDef> = {
   selic: { name: 'SELIC META', unit: '%', format: v => num(v, 2) + '%', deltaMode: 'pp', fallback: 14.5 },
   dolar: { name: 'DÓLAR PTAX', unit: 'R$', format: v => 'R$ ' + num(v, 4), deltaMode: 'pct', fallback: 5.02 },
   brent: { name: 'PETRÓLEO BRENT', unit: 'US$/bbl', format: v => 'US$ ' + num(v, 2), deltaMode: 'pct', fallback: 96 },
-  diesel: { name: 'DIESEL S10', unit: 'R$/L', format: v => 'R$ ' + num(v, 2), deltaMode: 'pct', fallback: 7.24 },
+  diesel: { name: 'DIESEL S10', unit: 'R$/L', format: v => 'R$ ' + num(v, 2), deltaMode: 'pct', fallback: 7.35, primaryLabel: 'Média Brasil' },
   acucar: { name: 'AÇÚCAR CRISTAL CEPEA', unit: 'R$/sc', format: v => 'R$ ' + num(v, 2), deltaMode: 'pct', fallback: 141 },
   pet: { name: 'PET VIRGEM', unit: 'US$/t', format: v => 'US$ ' + num(v, 2), deltaMode: 'pct', fallback: 916 },
   icc: { name: 'ICC FGV', unit: 'pts', format: v => num(v, 1) + ' pts', deltaMode: 'pct', fallback: 88.8 },
 };
 
-const AUTO_IDS: AutoId[] = ['ipca', 'selic', 'dolar', 'brent', 'acucar'];
-const MANUAL_IDS: ManualId[] = ['diesel', 'pet', 'icc'];
+const AUTO_IDS: AutoId[] = ['ipca', 'selic', 'dolar', 'brent', 'acucar', 'diesel'];
+const MANUAL_IDS: ManualId[] = ['pet', 'icc'];
 
 const API_URL = '/api/indicators';
 
@@ -74,6 +79,7 @@ interface StoredReading {
   /** yyyy-MM-dd (automático) ou ISO completo (manual) */
   date: string;
   source?: string;
+  secondary?: { label: string; value: number; previousValue?: number };
 }
 
 const LAST_GOOD_KEY = 'refrix_last_good_v1';
@@ -158,6 +164,8 @@ function buildIndicator(
     sourceType: isManual ? 'Manual' : 'Automático',
     source: reading?.source,
     deltaMode: def.deltaMode,
+    primaryLabel: reading?.secondary ? def.primaryLabel : undefined,
+    secondary: reading?.secondary,
   };
 }
 
@@ -179,6 +187,7 @@ interface ApiResult {
   previousValue?: number | null;
   refDate?: string;
   source?: string;
+  secondary?: { label: string; value: number; previousValue: number | null };
   error?: string;
 }
 
@@ -264,6 +273,13 @@ export function useEconomicIndicators(): EconomicData {
             previousValue: r.previousValue ?? undefined,
             date: r.refDate,
             source: r.source,
+            secondary: r.secondary
+              ? {
+                  label: r.secondary.label,
+                  value: r.secondary.value,
+                  previousValue: r.secondary.previousValue ?? undefined,
+                }
+              : undefined,
           };
           autoStatus[id] = 'ok';
         } else {
