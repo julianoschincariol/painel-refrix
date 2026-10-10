@@ -1,10 +1,11 @@
 import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts';
 import type { HistoryPoint } from '@/hooks/useHistory';
+import type { DeltaMode } from '@/hooks/useEconomicIndicators';
 
 interface SparklineProps {
   points: HistoryPoint[];
-  /** Taxas mostram a mudança em p.p.; preços, em % */
-  deltaMode: 'pct' | 'pp';
+  /** Taxas mostram a mudança em p.p.; índices, em pontos; preços, em % */
+  deltaMode: DeltaMode;
   stepped?: boolean;
 }
 
@@ -28,12 +29,12 @@ export function Sparkline({ points, deltaMode, stepped }: SparklineProps) {
   const first = points[0].v;
   const last = points[points.length - 1].v;
   const diff = last - first;
-  const delta = deltaMode === 'pp' ? diff : first !== 0 ? (diff / Math.abs(first)) * 100 : 0;
+  const delta = deltaMode !== 'pct' ? diff : first !== 0 ? (diff / Math.abs(first)) * 100 : 0;
   const color = diff >= 0 ? UP : DOWN;
   const deltaText =
     (delta > 0 ? '+' : '') +
     delta.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: deltaMode === 'pp' ? 2 : 1 }) +
-    (deltaMode === 'pp' ? ' p.p.' : '%');
+    (deltaMode === 'pp' ? ' p.p.' : deltaMode === 'pts' ? ' pts' : '%');
 
   return (
     <div className="flex items-end gap-2" data-testid="sparkline">

@@ -71,7 +71,7 @@ export interface Point {
   v: number;
 }
 
-export const MANUAL_IDS = ["pet", "icc"] as const;
+export const MANUAL_IDS = ["pet"] as const;
 export type ManualId = (typeof MANUAL_IDS)[number];
 
 export interface ManualState {

@@ -3,6 +3,7 @@ import { logger } from "../lib/logger";
 import { fetchWithTimeout, fetchYahooChart, quoteFromChart } from "../lib/fetch";
 import { getCepeaSugar } from "../lib/cepea";
 import { getDieselPrices } from "../lib/diesel";
+import { getIcc } from "../lib/fgv-icc";
 import { fetchSgs, toBrDate, toIsoDate } from "../lib/bcb";
 
 // Busca os indicadores automáticos no servidor (sem proxy de terceiros e sem
@@ -175,6 +176,19 @@ async function fetchDiesel(): Promise<IndicatorReading> {
   };
 }
 
+async function fetchIcc(): Promise<IndicatorReading> {
+  // Índice de Confiança do Consumidor da FGV (mensal, dessazonalizado)
+  const icc = await getIcc();
+  return {
+    id: "icc",
+    ok: true,
+    value: icc.value,
+    previousValue: icc.previousValue,
+    refDate: icc.refDate,
+    source: "FGV IBRE",
+  };
+}
+
 const FETCHERS: Record<string, () => Promise<IndicatorReading>> = {
   ipca: fetchIpca,
   selic: fetchSelic,
@@ -182,6 +196,7 @@ const FETCHERS: Record<string, () => Promise<IndicatorReading>> = {
   brent: fetchBrent,
   acucar: fetchAcucar,
   diesel: fetchDiesel,
+  icc: fetchIcc,
 };
 
 async function loadAll(): Promise<IndicatorsResponse> {

@@ -3,6 +3,7 @@ import { logger } from "../lib/logger";
 import { fetchYahooChart } from "../lib/fetch";
 import { fetchSgs, toBrDate, toIsoDate } from "../lib/bcb";
 import { getCepeaSugar } from "../lib/cepea";
+import { getIccHistory } from "../lib/fgv-icc";
 import {
   MANUAL_IDS,
   type ManualId,
@@ -22,7 +23,7 @@ const RANGES = {
 } as const;
 type Range = keyof typeof RANGES;
 
-const IDS = ["ipca", "selic", "dolar", "brent", "acucar", "diesel", ...MANUAL_IDS] as const;
+const IDS = ["ipca", "selic", "dolar", "brent", "acucar", "diesel", "icc", ...MANUAL_IDS] as const;
 type HistoryId = (typeof IDS)[number];
 
 /** Máximo de pontos por série (gráfico não precisa de mais que isso) */
@@ -99,6 +100,8 @@ async function loadSeries(id: HistoryId, range: Range): Promise<Point[]> {
       return cepeaHistory(range);
     case "diesel":
       return dieselHistory(range);
+    case "icc":
+      return getIccHistory(toIsoDate(startDate(range)));
     default:
       return getManualHistory(id, startDate(range));
   }

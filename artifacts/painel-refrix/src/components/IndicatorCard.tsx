@@ -22,9 +22,9 @@ function DeltaBadge({ indicator }: { indicator: Indicator }) {
   if (previous === undefined || previous === 0) return null;
 
   const diff = current - previous;
-  // Taxas (IPCA, Selic) variam em pontos percentuais; preços, em %
-  const delta = deltaMode === 'pp' ? diff : (diff / Math.abs(previous)) * 100;
-  const suffix = deltaMode === 'pp' ? ' p.p.' : '%';
+  // Taxas (IPCA, Selic) variam em pontos percentuais; índices (ICC), em pontos; preços, em %
+  const delta = deltaMode === 'pct' ? (diff / Math.abs(previous)) * 100 : diff;
+  const suffix = deltaMode === 'pp' ? ' p.p.' : deltaMode === 'pts' ? ' pts' : '%';
 
   // Only show if change is meaningful
   if (Math.abs(delta) < 0.001) return null;

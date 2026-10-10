@@ -5,6 +5,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatIndicatorValue, type Indicator } from '@/hooks/useEconomicIndicators';
 import { useHistory, type HistoryRange } from '@/hooks/useHistory';
+import { IccArticle } from '@/components/IccArticle';
 
 const RANGES: Array<{ value: HistoryRange; label: string }> = [
   { value: '6m', label: '6 meses' },
@@ -37,10 +38,13 @@ export function IndicatorChartDialog({ indicator, onClose }: Props) {
   if (indicator && values.length >= 2) {
     const diff = last - first;
     change =
-      indicator.deltaMode === 'pp'
-        ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} p.p.`
+      indicator.deltaMode !== 'pct'
+        ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${indicator.deltaMode === 'pp' ? 'p.p.' : 'pts'}`
         : `${diff > 0 ? '+' : ''}${((diff / Math.abs(first)) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
   }
+
+  // Índices mensais: o ponto vale para o mês inteiro
+  const monthly = indicator?.id === 'ipca' || indicator?.id === 'icc';
 
   const tickDate = (d: string) =>
     format(parseISO(d), range === '5y' ? 'yyyy' : 'MMM/yy', { locale: ptBR });
@@ -50,7 +54,7 @@ export function IndicatorChartDialog({ indicator, onClose }: Props) {
 
   return (
     <Dialog open={Boolean(indicator)} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-3xl bg-card border-border">
+      <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
             {indicator?.name} · histórico
@@ -134,7 +138,7 @@ export function IndicatorChartDialog({ indicator, onClose }: Props) {
                     borderRadius: 6,
                     fontSize: 12,
                   }}
-                  labelFormatter={d => format(parseISO(String(d)), 'dd/MM/yyyy')}
+                  labelFormatter={d => format(parseISO(String(d)), monthly ? 'MMM/yyyy' : 'dd/MM/yyyy', { locale: ptBR })}
                   formatter={v => [fmt(Number(v)), indicator?.name ?? '']}
                 />
                 <Area
@@ -152,6 +156,8 @@ export function IndicatorChartDialog({ indicator, onClose }: Props) {
             </ResponsiveContainer>
           )}
         </div>
+
+        {indicator?.id === 'icc' && <IccArticle />}
       </DialogContent>
     </Dialog>
   );

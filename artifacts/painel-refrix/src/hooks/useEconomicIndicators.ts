@@ -3,8 +3,10 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export type IndicatorStatus = 'ok' | 'fallback' | 'manual' | 'error';
-export type ManualId = 'pet' | 'icc';
-type AutoId = 'ipca' | 'selic' | 'dolar' | 'brent' | 'acucar' | 'diesel';
+export type ManualId = 'pet';
+type AutoId = 'ipca' | 'selic' | 'dolar' | 'brent' | 'acucar' | 'diesel' | 'icc';
+/** Como mostrar a variação: % (preços), p.p. (taxas) ou pontos (índices) */
+export type DeltaMode = 'pct' | 'pp' | 'pts';
 export type IndicatorId = AutoId | ManualId;
 
 export interface Indicator {
@@ -20,8 +22,8 @@ export interface Indicator {
   refLabel: string;
   sourceType: 'Automático' | 'Manual';
   source?: string;
-  /** Taxas (%) variam em pontos percentuais; preços variam em % */
-  deltaMode: 'pct' | 'pp';
+  /** Taxas (%) variam em pontos percentuais; preços variam em %; índices, em pontos */
+  deltaMode: DeltaMode;
   /** Legenda do valor principal, quando o card tem duas cotações */
   primaryLabel?: string;
   /** Segunda cotação do card (ex.: diesel em São Paulo) */
@@ -47,7 +49,7 @@ interface IndicatorDef {
   name: string;
   unit: string;
   format: (v: number) => string;
-  deltaMode: 'pct' | 'pp';
+  deltaMode: DeltaMode;
   /** Valor usado só se nunca houve leitura real nem valor salvo */
   fallback: number;
   /** Indicadores mensais mostram "set/2026" em vez do dia */
@@ -63,11 +65,13 @@ const DEFS: Record<IndicatorId, IndicatorDef> = {
   diesel: { name: 'DIESEL S10', unit: 'R$/L', format: v => 'R$ ' + num(v, 2), deltaMode: 'pct', fallback: 7.35, primaryLabel: 'Média Brasil' },
   acucar: { name: 'AÇÚCAR CRISTAL CEPEA', unit: 'R$/sc', format: v => 'R$ ' + num(v, 2), deltaMode: 'pct', fallback: 141 },
   pet: { name: 'PET VIRGEM', unit: 'US$/t', format: v => 'US$ ' + num(v, 2), deltaMode: 'pct', fallback: 916 },
-  icc: { name: 'ICC FGV', unit: 'pts', format: v => num(v, 1) + ' pts', deltaMode: 'pct', fallback: 88.8 },
+  icc: { name: 'ICC FGV', unit: 'pts', format: v => num(v, 1) + ' pts', deltaMode: 'pts', fallback: 84.2, monthly: true },
 };
 
-const AUTO_IDS: AutoId[] = ['ipca', 'selic', 'dolar', 'brent', 'acucar', 'diesel'];
-const MANUAL_IDS: ManualId[] = ['pet', 'icc'];
+const AUTO_IDS: AutoId[] = ['ipca', 'selic', 'dolar', 'brent', 'acucar', 'diesel', 'icc'];
+const MANUAL_IDS: ManualId[] = ['pet'];
+/** Ordem dos cards na tela */
+const ORDER: IndicatorId[] = ['ipca', 'selic', 'dolar', 'brent', 'acucar', 'diesel', 'pet', 'icc'];
 
 const API_URL = '/api/indicators';
 
@@ -109,7 +113,7 @@ function loadManualValues(): Record<string, StoredReading> {
   try {
     const legacy = JSON.parse(localStorage.getItem(LEGACY_MANUAL_KEY) ?? 'null');
     if (legacy && typeof legacy === 'object') {
-      for (const id of ['pet', 'icc'] as const) {
+      for (const id of ['pet'] as const) {
         if (!stored[id] && typeof legacy[id] === 'number') {
           stored[id] = { value: legacy[id], date: '' };
         }
@@ -174,10 +178,11 @@ function buildIndicators(
   autoStatus: Partial<Record<AutoId, IndicatorStatus>>,
   manualReadings: Record<string, StoredReading>,
 ): Indicator[] {
-  return [
-    ...AUTO_IDS.map(id => buildIndicator(id, autoReadings[id], autoStatus[id] ?? 'fallback')),
-    ...MANUAL_IDS.map(id => buildIndicator(id, manualReadings[id], 'manual')),
-  ];
+  return ORDER.map(id =>
+    MANUAL_IDS.includes(id as ManualId)
+      ? buildIndicator(id, manualReadings[id], 'manual')
+      : buildIndicator(id, autoReadings[id], autoStatus[id as AutoId] ?? 'fallback'),
+  );
 }
 
 interface ApiResult {
